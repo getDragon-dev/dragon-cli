@@ -1,0 +1,14 @@
+project_name: dragon
+builds:
+  - id: dragon
+    main: ./cmd/dragon
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+release:
+  github:
+    owner: getDragon-dev
+    name: dragon-cli
+changelog:
+  sort: asc

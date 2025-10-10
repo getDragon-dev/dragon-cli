@@ -1,0 +1,6 @@
+.DS_Store
+bin/
+*.exe
+*.log
+coverage.out
+.idea
