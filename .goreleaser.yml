@@ -1,14 +1,28 @@
+version: 2
+
 project_name: dragon
+
 builds:
   - id: dragon
     main: ./cmd/dragon
-    env:
-      - CGO_ENABLED=0
+    env: [CGO_ENABLED=0]
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
+
+archives:
+  - format: tar.gz
+    builds: [dragon]
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  use: github
+
 release:
   github:
     owner: getDragon-dev
     name: dragon-cli
-changelog:
-  sort: asc
+  draft: false
+  prerelease: false
