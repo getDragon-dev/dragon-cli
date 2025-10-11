@@ -24,7 +24,7 @@ Build, publish, and share your own **blueprints** with automatic versioning and 
 ## 📦 Registry
 Check out the full registry of public blueprints:
 
-👉 [View the Blueprint Registry](/registry)
+👉 [View the Blueprint Registry](https://getdragon.dev/registry)
 
 ---
 
