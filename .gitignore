@@ -1,8 +1,15 @@
+# macOS
 .DS_Store
-bin/
-*.exe
+
+# IDEs and logs
+.idea
 *.log
 coverage.out
-.idea
+
+# Binaries
+bin/
+/dragon
+/dragon.exe
+
+# Distribution artifacts
 dist/
-./dragon
