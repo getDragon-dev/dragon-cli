@@ -4,14 +4,14 @@ project_name: dragon
 
 builds:
   - id: dragon
-    main: ./main.go
+    main: ./cmd/dragon
     env: [CGO_ENABLED=0]
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
 
 archives:
-  - format: tar.gz
-    builds: [dragon]
+  - formats: ['tar.gz']
+    ids: [dragon]
 
 checksum:
   name_template: "checksums.txt"

@@ -13,28 +13,96 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
-	"log"
+	"os"
+	"sort"
+	"strings"
 
-	corereg "github.com/getDragon-dev/dragon-core/registry"
 	"github.com/spf13/cobra"
 )
 
+var listAll bool
+var listTag string
+var listJSON bool
+
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List available blueprints from registry.json",
-	Run: func(cmd *cobra.Command, args []string) {
-		db, err := corereg.Load(registryPath)
-		if err != nil {
-			log.Fatal(err)
+	Short: "List blueprints (active registry or all with --all)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		type row struct {
+			Name, Version, Description, Source string
+			Tags                               []string
 		}
-		fmt.Println("Available Blueprints:")
-		for _, bp := range db.Blueprints {
-			fmt.Printf("- %s (%s) — %s\n", bp.Name, bp.Version, bp.Description)
+		rows := []row{}
+		if listAll {
+			sets, err := loadAllRegistries()
+			if err != nil {
+				return err
+			}
+			seen := map[string]bool{}
+			for _, s := range sets {
+				for _, bp := range s.DB.Blueprints {
+					if seen[bp.Name] {
+						continue
+					}
+					if listTag != "" {
+						match := false
+						for _, t := range bp.Tags {
+							if strings.EqualFold(t, listTag) {
+								match = true
+								break
+							}
+						}
+						if !match {
+							continue
+						}
+					}
+					rows = append(rows, row{bp.Name, bp.Version, bp.Description, s.URL, bp.Tags})
+					seen[bp.Name] = true
+				}
+			}
+		} else {
+			db, err := loadRegistry()
+			if err != nil {
+				return err
+			}
+			src, _ := resolveRegistry()
+			for _, bp := range db.Blueprints {
+				if listTag != "" {
+					match := false
+					for _, t := range bp.Tags {
+						if strings.EqualFold(t, listTag) {
+							match = true
+							break
+						}
+					}
+					if !match {
+						continue
+					}
+				}
+				rows = append(rows, row{bp.Name, bp.Version, bp.Description, src, bp.Tags})
+			}
 		}
+		sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
+		if listJSON {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(rows)
+		}
+		if listAll {
+			fmt.Println("Registries are searched in configured order. First match wins.")
+		}
+		for _, r := range rows {
+			fmt.Printf("- %s (%s) — %s\n", r.Name, r.Version, r.Description)
+		}
+		return nil
 	},
 }
 
 func init() {
+	listCmd.Flags().BoolVar(&listAll, "all", false, "Aggregate across all registries")
+	listCmd.Flags().StringVar(&listTag, "tag", "", "Filter by tag (exact match)")
+	listCmd.Flags().BoolVar(&listJSON, "json", false, "Output JSON")
 	rootCmd.AddCommand(listCmd)
 }

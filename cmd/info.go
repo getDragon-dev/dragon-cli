@@ -14,30 +14,23 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 
-	corereg "github.com/getDragon-dev/dragon-core/registry"
 	"github.com/spf13/cobra"
 )
 
-var infoCmd = &cobra.Command{
-	Use:   "info <blueprint>",
-	Short: "Show detailed info about a blueprint",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		db, err := corereg.Load(registryPath)
+var infoCmd = &cobra.Command{Use: "info <blueprint>", Args: cobra.ExactArgs(1), Short: "Show detailed info about a blueprint",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		bp, src, err := findBlueprint(args[0])
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-		bp, err := corereg.Find(db, args[0])
-		if err != nil {
-			log.Fatal(err)
+		if err := applyVersionConstraint(bp.Version); err != nil {
+			return err
 		}
-		fmt.Printf("Name: %s\nVersion: %s\nDescription: %s\nTags: %v\nDownload: %s\nRepo: %s\nPath: %s\n",
-			bp.Name, bp.Version, bp.Description, bp.Tags, bp.DownloadURL, bp.Repo, bp.Path)
+		fmt.Printf("Name: %s\nVersion: %s\nDescription: %s\nTags: %v\nDownload: %s\nRepo: %s\nPath: %s\nSource Registry: %s\n",
+			bp.Name, bp.Version, bp.Description, bp.Tags, bp.DownloadURL, bp.Repo, bp.Path, src)
+		return nil
 	},
 }
 
-func init() {
-	rootCmd.AddCommand(infoCmd)
-}
+func init() { rootCmd.AddCommand(infoCmd) }
