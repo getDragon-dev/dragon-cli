@@ -4,5 +4,4 @@ bin/
 *.log
 coverage.out
 .idea
-dragon
 dist/
