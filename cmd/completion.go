@@ -34,7 +34,7 @@ var completionBashCmd = &cobra.Command{
 var completionZshCmd = &cobra.Command{
 	Use: "zsh",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Fprintln(os.Stdout, "#compdef dragon")
+		_, _ = fmt.Fprintln(os.Stdout, "#compdef dragon")
 		return rootCmd.GenZshCompletion(os.Stdout)
 	},
 }

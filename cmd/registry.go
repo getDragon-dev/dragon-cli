@@ -47,6 +47,7 @@ var (
 	regName string
 	regURL  string
 )
+
 var registryAddCmd = &cobra.Command{Use: "add", RunE: func(cmd *cobra.Command, args []string) error {
 	if regName == "" || regURL == "" {
 		return errors.New("--name and --url required")
@@ -104,14 +105,14 @@ var registryDefaultCmd = &cobra.Command{Use: "set-default <name>", Args: cobra.E
 	if err != nil {
 		return err
 	}
-	found := false
+	ok := false
 	for _, r := range cfg.Registries {
 		if r.Name == name {
-			found = true
+			ok = true
 			break
 		}
 	}
-	if !found {
+	if !ok {
 		return fmt.Errorf("registry %q not found", name)
 	}
 	cfg.Default = name

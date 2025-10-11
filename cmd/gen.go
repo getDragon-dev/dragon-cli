@@ -14,6 +14,7 @@ package cmd
 
 import (
 	"archive/zip"
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -25,19 +26,22 @@ import (
 
 	coretempl "github.com/getDragon-dev/dragon-core/templates"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var (
-	genName   string
-	genOut    string
-	genRouter string
-	genDB     string
-	genRemote bool
+	genName        string
+	genOut         string
+	genRouter      string
+	genDB          string
+	genRemote      bool
+	genVersion     string
+	genVarsFile    string
+	genSets        []string
+	genInteractive bool
 )
 
-var genCmd = &cobra.Command{
-	Use:   "gen",
-	Short: "Generate a project from a blueprint",
+var genCmd = &cobra.Command{Use: "gen", Short: "Generate a project from a blueprint", ValidArgsFunction: completeBlueprints,
 	Run: func(cmd *cobra.Command, args []string) {
 		if genName == "" {
 			log.Fatal("missing --blueprint/-b name")
@@ -46,8 +50,8 @@ var genCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err := applyVersionConstraint(bp.Version); err != nil {
-			log.Fatal(err)
+		if genVersion != "" && !satisfies(bp.Version, genVersion) {
+			log.Fatalf("blueprint version %s does not satisfy constraint %s", bp.Version, genVersion)
 		}
 
 		var src string
@@ -64,20 +68,20 @@ var genCmd = &cobra.Command{
 			}
 		}
 
-		ctx := coretempl.Context{
-			"Name": genName,
-		}
+		ctx := coretempl.Context{"Name": genName}
 		if genName == "api-service" {
 			ctx["Router"], ctx["DB"] = genRouter, genDB
 		}
-		user, err := loadUserVars()
+		vars, err := loadUserVars(genVarsFile, genSets)
 		if err != nil {
 			log.Fatal(err)
 		}
-		for k, v := range user {
+		for k, v := range vars {
 			ctx[k] = v
 		}
-		promptIfNeeded(ctx, genName)
+		if genInteractive {
+			promptAPI(ctx)
+		}
 
 		if err := coretempl.RenderDir(src, genOut, ctx); err != nil {
 			log.Fatal(err)
@@ -89,9 +93,13 @@ var genCmd = &cobra.Command{
 func init() {
 	genCmd.Flags().StringVarP(&genName, "blueprint", "b", "", "Blueprint name (required)")
 	genCmd.Flags().StringVarP(&genOut, "out", "o", ".", "Output directory")
-	genCmd.Flags().StringVar(&genRouter, "router", "chi", "Router: chi|gorilla|httprouter|servemux (api-service only)")
-	genCmd.Flags().StringVar(&genDB, "db", "postgres-gorm", "DB: sqlite-native|sqlite-gorm|postgres-native|postgres-gorm|mysql-native|mysql-gorm (api-service only)")
+	genCmd.Flags().StringVar(&genRouter, "router", "servemux", "Router: chi|gorilla|httprouter|servemux (api-service only)")
+	genCmd.Flags().StringVar(&genDB, "db", "sqlite-native", "DB: sqlite-native|sqlite-gorm|postgres-native|postgres-gorm|mysql-native|mysql-gorm (api-service only)")
 	genCmd.Flags().BoolVar(&genRemote, "remote", false, "Download blueprint from release asset instead of local repo")
+	genCmd.Flags().StringVar(&genVersion, "version", "", "Version constraint (e.g. ^1.0, >=1.2.3)")
+	genCmd.Flags().StringVar(&genVarsFile, "vars", "", "YAML/JSON file with template variables")
+	genCmd.Flags().StringSliceVar(&genSets, "set", nil, "Set template var (key=value), repeatable")
+	genCmd.Flags().BoolVar(&genInteractive, "interactive", false, "Prompt for common variables when missing")
 	_ = genCmd.MarkFlagRequired("blueprint")
 	rootCmd.AddCommand(genCmd)
 }
@@ -102,19 +110,19 @@ func completeBlueprints(cmd *cobra.Command, args []string, toComplete string) ([
 		return nil, cobra.ShellCompDirectiveError
 	}
 	seen := map[string]bool{}
-	suggestions := []string{}
+	out := []string{}
 	for _, s := range sets {
 		for _, bp := range s.DB.Blueprints {
 			if seen[bp.Name] {
 				continue
 			}
 			if toComplete == "" || strings.HasPrefix(bp.Name, toComplete) {
-				suggestions = append(suggestions, bp.Name)
+				out = append(out, bp.Name)
 			}
 			seen[bp.Name] = true
 		}
 	}
-	return suggestions, cobra.ShellCompDirectiveNoFileComp
+	return out, cobra.ShellCompDirectiveNoFileComp
 }
 
 func downloadAndExtractTemplate(url string) (string, error) {
@@ -161,4 +169,44 @@ func downloadAndExtractTemplate(url string) (string, error) {
 		}
 	}
 	return filepath.Join(dst, "template"), nil
+}
+
+func loadUserVars(file string, sets []string) (map[string]any, error) {
+	vars := map[string]any{}
+	if file != "" {
+		b, err := os.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+		if err := yaml.Unmarshal(b, &vars); err != nil {
+			return nil, err
+		}
+	}
+	for _, kv := range sets {
+		parts := strings.SplitN(kv, "=", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("bad --set %q, want key=value", kv)
+		}
+		vars[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+	}
+	return vars, nil
+}
+
+func promptAPI(ctx map[string]any) {
+	in := bufio.NewReader(os.Stdin)
+	ask := func(k, def string) string {
+		if v, ok := ctx[k]; ok && fmt.Sprint(v) != "" {
+			return fmt.Sprint(v)
+		}
+		fmt.Printf("%s [%s]: ", k, def)
+		s, _ := in.ReadString('\n')
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return def
+		}
+		return s
+	}
+	ctx["Module"] = ask("Module", fmt.Sprint(ctx["Module"]))
+	ctx["Router"] = ask("Router", fmt.Sprint(ctx["Router"]))
+	ctx["DB"] = ask("DB", fmt.Sprint(ctx["DB"]))
 }

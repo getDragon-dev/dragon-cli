@@ -26,83 +26,76 @@ var listAll bool
 var listTag string
 var listJSON bool
 
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List blueprints (active registry or all with --all)",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		type row struct {
-			Name, Version, Description, Source string
-			Tags                               []string
+var listCmd = &cobra.Command{Use: "list", Short: "List available blueprints", RunE: func(cmd *cobra.Command, args []string) error {
+	type row struct {
+		Name, Version, Description, Source string
+		Tags                               []string
+	}
+	rows := []row{}
+	if listAll {
+		sets, err := loadAllRegistries()
+		if err != nil {
+			return err
 		}
-		rows := []row{}
-		if listAll {
-			sets, err := loadAllRegistries()
-			if err != nil {
-				return err
-			}
-			seen := map[string]bool{}
-			for _, s := range sets {
-				for _, bp := range s.DB.Blueprints {
-					if seen[bp.Name] {
-						continue
-					}
-					if listTag != "" {
-						match := false
-						for _, t := range bp.Tags {
-							if strings.EqualFold(t, listTag) {
-								match = true
-								break
-							}
-						}
-						if !match {
-							continue
-						}
-					}
-					rows = append(rows, row{bp.Name, bp.Version, bp.Description, s.URL, bp.Tags})
-					seen[bp.Name] = true
+		seen := map[string]bool{}
+		for _, s := range sets {
+			for _, bp := range s.DB.Blueprints {
+				if seen[bp.Name] {
+					continue
 				}
-			}
-		} else {
-			db, err := loadRegistry()
-			if err != nil {
-				return err
-			}
-			src, _ := resolveRegistry()
-			for _, bp := range db.Blueprints {
 				if listTag != "" {
-					match := false
+					ok := false
 					for _, t := range bp.Tags {
 						if strings.EqualFold(t, listTag) {
-							match = true
+							ok = true
 							break
 						}
 					}
-					if !match {
+					if !ok {
 						continue
 					}
 				}
-				rows = append(rows, row{bp.Name, bp.Version, bp.Description, src, bp.Tags})
+				rows = append(rows, row{bp.Name, bp.Version, bp.Description, s.URL, bp.Tags})
+				seen[bp.Name] = true
 			}
 		}
-		sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
-		if listJSON {
-			enc := json.NewEncoder(os.Stdout)
-			enc.SetIndent("", "  ")
-			return enc.Encode(rows)
+	} else {
+		db, err := loadRegistry()
+		if err != nil {
+			return err
 		}
-		if listAll {
-			fmt.Println("Registries are searched in configured order. First match wins.")
+		src, _ := resolveRegistry()
+		for _, bp := range db.Blueprints {
+			if listTag != "" {
+				ok := false
+				for _, t := range bp.Tags {
+					if strings.EqualFold(t, listTag) {
+						ok = true
+						break
+					}
+				}
+				if !ok {
+					continue
+				}
+			}
+			rows = append(rows, row{bp.Name, bp.Version, bp.Description, src, bp.Tags})
 		}
-		for _, r := range rows {
-			fmt.Printf("- %s (%s) — %s\n", r.Name, r.Version, r.Description)
-		}
-		return nil
-	},
-}
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
+	if listJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(rows)
+	}
+	for _, r := range rows {
+		fmt.Printf("- %s (%s) — %s\n", r.Name, r.Version, r.Description)
+	}
+	return nil
+}}
 
 func init() {
-	listCmd.Flags().BoolVar(&listAll, "all", false, "Aggregate across all registries")
-	listCmd.Flags().StringVar(&listTag, "tag", "", "Filter by tag (exact match)")
-	listCmd.Flags().BoolVar(&listJSON, "json", false, "Output JSON")
+	listCmd.Flags().BoolVar(&listAll, "all", false, "aggregate across all registries")
+	listCmd.Flags().StringVar(&listTag, "tag", "", "filter by tag")
+	listCmd.Flags().BoolVar(&listJSON, "json", false, "output JSON")
 	rootCmd.AddCommand(listCmd)
 }

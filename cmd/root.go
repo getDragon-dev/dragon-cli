@@ -28,13 +28,12 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "dragon",
-	Short: "Dragon - project generator and blueprint manager",
+	Short: "Dragon - blueprint manager and project generator",
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&registryPath, "registry", "", "Path or URL to registry.json")
+	rootCmd.PersistentFlags().StringVar(&registryPath, "registry", "", "Path or URL to registry.json (overrides configured registries)")
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-
 }
 
 func Execute() {
@@ -67,9 +66,7 @@ func configDir() string {
 	return filepath.Join(os.Getenv("HOME"), ".config", "dragon")
 }
 
-func configPath() string {
-	return filepath.Join(configDir(), "config.json")
-}
+func configPath() string { return filepath.Join(configDir(), "config.json") }
 
 func readConfig() (Config, error) {
 	p := configPath()
@@ -100,12 +97,9 @@ func ensureConfigDefaults() {
 	}
 	_ = os.MkdirAll(configDir(), 0o755)
 	cfg := Config{
-		Registries: []Registry{{
-			Name: "public",
-			URL:  "https://getdragon.dev/registry.json",
-		}},
-		Default: "public",
-		Order:   []string{"public"},
+		Registries: []Registry{{Name: "public", URL: "https://getdragon.dev/registry.json"}},
+		Default:    "public",
+		Order:      []string{"public"},
 	}
 	_ = writeConfig(cfg)
 }

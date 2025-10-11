@@ -13,21 +13,45 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
-var infoCmd = &cobra.Command{Use: "info <blueprint>", Args: cobra.ExactArgs(1), Short: "Show detailed info about a blueprint",
+type vmanifest struct {
+	Name        string   `yaml:"name"`
+	Version     string   `yaml:"version"`
+	Description string   `yaml:"description"`
+	Tags        []string `yaml:"tags"`
+}
+
+var validateFile string
+
+var validateCmd = &cobra.Command{Use: "validate", Short: "Validate a blueprint manifest.yaml",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		bp, src, err := findBlueprint(args[0])
+		b, err := os.ReadFile(validateFile)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Name: %s\nVersion: %s\nDescription: %s\nTags: %v\nDownload: %s\nRepo: %s\nPath: %s\nSource Registry: %s\n",
-			bp.Name, bp.Version, bp.Description, bp.Tags, bp.DownloadURL, bp.Repo, bp.Path, src)
+		var m vmanifest
+		if err := yaml.Unmarshal(b, &m); err != nil {
+			return err
+		}
+		if m.Name == "" {
+			return errors.New("name is required")
+		}
+		if m.Version == "" {
+			return errors.New("version is required")
+		}
+		fmt.Println("OK:", validateFile)
 		return nil
 	},
 }
 
-func init() { rootCmd.AddCommand(infoCmd) }
+func init() {
+	validateCmd.Flags().StringVar(&validateFile, "file", "manifest.yaml", "Path to manifest.yaml")
+	rootCmd.AddCommand(validateCmd)
+}

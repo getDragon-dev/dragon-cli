@@ -14,20 +14,24 @@ package cmd
 
 import (
 	"fmt"
+	"os/exec"
 
 	"github.com/spf13/cobra"
 )
 
-var infoCmd = &cobra.Command{Use: "info <blueprint>", Args: cobra.ExactArgs(1), Short: "Show detailed info about a blueprint",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		bp, src, err := findBlueprint(args[0])
-		if err != nil {
-			return err
-		}
-		fmt.Printf("Name: %s\nVersion: %s\nDescription: %s\nTags: %v\nDownload: %s\nRepo: %s\nPath: %s\nSource Registry: %s\n",
-			bp.Name, bp.Version, bp.Description, bp.Tags, bp.DownloadURL, bp.Repo, bp.Path, src)
-		return nil
-	},
-}
+var relAuto bool
 
-func init() { rootCmd.AddCommand(infoCmd) }
+var releaseCmd = &cobra.Command{Use: "release", Short: "Run GoReleaser if available", RunE: func(cmd *cobra.Command, args []string) error {
+	if _, err := exec.LookPath("goreleaser"); err != nil {
+		fmt.Println("goreleaser not found in PATH; run: go install github.com/goreleaser/goreleaser/v2@latest")
+		return nil
+	}
+	c := exec.Command("goreleaser", "release", "--clean")
+	c.Stdout, c.Stderr = cmd.OutOrStdout(), cmd.ErrOrStderr()
+	return c.Run()
+}}
+
+func init() {
+	releaseCmd.Flags().BoolVar(&relAuto, "auto", true, "Auto mode (noop flag for now)")
+	rootCmd.AddCommand(releaseCmd)
+}

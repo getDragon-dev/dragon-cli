@@ -41,7 +41,7 @@ var searchCmd = &cobra.Command{Use: "search", Short: "Search blueprints by name/
 			for _, s := range loaded {
 				names := []string{}
 				for _, bp := range s.DB.Blueprints {
-					if matches(bp.Name, bp.Description, bp.Tags, q, searchTag) {
+					if match(bp.Name, bp.Description, bp.Tags, q, searchTag) {
 						names = append(names, bp.Name)
 					}
 				}
@@ -50,8 +50,7 @@ var searchCmd = &cobra.Command{Use: "search", Short: "Search blueprints by name/
 					Names []string
 				}{s.URL, names})
 			}
-		}
-		if !searchAll {
+		} else {
 			db, err := loadRegistry()
 			if err != nil {
 				return err
@@ -59,7 +58,7 @@ var searchCmd = &cobra.Command{Use: "search", Short: "Search blueprints by name/
 			src, _ := resolveRegistry()
 			names := []string{}
 			for _, bp := range db.Blueprints {
-				if matches(bp.Name, bp.Description, bp.Tags, q, searchTag) {
+				if match(bp.Name, bp.Description, bp.Tags, q, searchTag) {
 					names = append(names, bp.Name)
 				}
 			}
@@ -69,7 +68,7 @@ var searchCmd = &cobra.Command{Use: "search", Short: "Search blueprints by name/
 			}{src, names})
 		}
 		for _, s := range sets {
-			fmt.Printf("%s\n", s.URL)
+			fmt.Println(s.URL)
 			for _, n := range s.Names {
 				fmt.Printf("  - %s\n", n)
 			}
@@ -78,7 +77,7 @@ var searchCmd = &cobra.Command{Use: "search", Short: "Search blueprints by name/
 	},
 }
 
-func matches(name, desc string, tags []string, q, tag string) bool {
+func match(name, desc string, tags []string, q, tag string) bool {
 	if tag != "" {
 		ok := false
 		for _, t := range tags {
@@ -94,6 +93,7 @@ func matches(name, desc string, tags []string, q, tag string) bool {
 	if q == "" {
 		return true
 	}
+	q = strings.ToLower(q)
 	if strings.Contains(strings.ToLower(name), q) {
 		return true
 	}
@@ -109,8 +109,8 @@ func matches(name, desc string, tags []string, q, tag string) bool {
 }
 
 func init() {
-	searchCmd.Flags().BoolVar(&searchAll, "all", true, "Search across all registries by default")
-	searchCmd.Flags().StringVar(&searchQuery, "query", "", "Substring to search for (case-insensitive)")
-	searchCmd.Flags().StringVar(&searchTag, "tag", "", "Filter by exact tag")
+	searchCmd.Flags().BoolVar(&searchAll, "all", true, "search across all registries by default")
+	searchCmd.Flags().StringVar(&searchQuery, "query", "", "substring to search for")
+	searchCmd.Flags().StringVar(&searchTag, "tag", "", "filter by exact tag")
 	rootCmd.AddCommand(searchCmd)
 }

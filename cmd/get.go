@@ -14,20 +14,21 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
 
-var infoCmd = &cobra.Command{Use: "info <blueprint>", Args: cobra.ExactArgs(1), Short: "Show detailed info about a blueprint",
+var getCmd = &cobra.Command{Use: "get <blueprint>", Args: cobra.ExactArgs(1), Short: "Fetch and render a blueprint (remote)",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		bp, src, err := findBlueprint(args[0])
-		if err != nil {
-			return err
-		}
-		fmt.Printf("Name: %s\nVersion: %s\nDescription: %s\nTags: %v\nDownload: %s\nRepo: %s\nPath: %s\nSource Registry: %s\n",
-			bp.Name, bp.Version, bp.Description, bp.Tags, bp.DownloadURL, bp.Repo, bp.Path, src)
-		return nil
+		name := args[0]
+		out := filepath.Join(".", name)
+		genName = name
+		genOut = out
+		genRemote = true
+		fmt.Printf("Generating %s into %s using remote asset...\n", name, out)
+		return genCmd.RunE(cmd, []string{})
 	},
 }
 
-func init() { rootCmd.AddCommand(infoCmd) }
+func init() { rootCmd.AddCommand(getCmd) }

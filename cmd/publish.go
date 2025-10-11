@@ -14,20 +14,30 @@ package cmd
 
 import (
 	"fmt"
+	"os/exec"
 
 	"github.com/spf13/cobra"
 )
 
-var infoCmd = &cobra.Command{Use: "info <blueprint>", Args: cobra.ExactArgs(1), Short: "Show detailed info about a blueprint",
+var pubTag string
+
+var publishCmd = &cobra.Command{Use: "publish", Short: "Tag and push a release (local helper)",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		bp, src, err := findBlueprint(args[0])
-		if err != nil {
-			return err
+		if pubTag == "" {
+			return fmt.Errorf("--tag vX.Y.Z required")
 		}
-		fmt.Printf("Name: %s\nVersion: %s\nDescription: %s\nTags: %v\nDownload: %s\nRepo: %s\nPath: %s\nSource Registry: %s\n",
-			bp.Name, bp.Version, bp.Description, bp.Tags, bp.DownloadURL, bp.Repo, bp.Path, src)
+		if err := exec.Command("git", "tag", pubTag).Run(); err != nil {
+			return fmt.Errorf("git tag: %w", err)
+		}
+		if err := exec.Command("git", "push", "origin", pubTag).Run(); err != nil {
+			return fmt.Errorf("git push: %w", err)
+		}
+		fmt.Println("Tagged and pushed", pubTag)
 		return nil
 	},
 }
 
-func init() { rootCmd.AddCommand(infoCmd) }
+func init() {
+	publishCmd.Flags().StringVar(&pubTag, "tag", "", "Tag to publish (e.g. v1.2.3)")
+	rootCmd.AddCommand(publishCmd)
+}
