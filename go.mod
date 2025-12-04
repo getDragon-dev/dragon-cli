@@ -1,10 +1,10 @@
 module github.com/getDragon-dev/dragon-cli
 
-go 1.25.3
+go 1.25.5
 
 require (
 	github.com/getDragon-dev/dragon-core v0.1.2
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 
