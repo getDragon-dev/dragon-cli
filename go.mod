@@ -1,6 +1,6 @@
 module github.com/getDragon-dev/dragon-cli
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/getDragon-dev/dragon-core v0.1.2
